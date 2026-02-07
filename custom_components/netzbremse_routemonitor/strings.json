@@ -1,0 +1,36 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Configure Netzbremse Routemonitor",
+        "description": "Set up monitoring for your network routes. Configure how often speed measurements should be taken.",
+        "data": {
+          "polling_interval": "Polling interval (seconds)"
+        },
+        "data_description": {
+          "polling_interval": "How often to check route speeds (60-3600 seconds, default: 300)"
+        }
+      }
+    },
+    "error": {
+      "invalid_interval": "Polling interval must be between 60 and 3600 seconds"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Update Polling Interval",
+        "description": "Change how often speed measurements are taken.",
+        "data": {
+          "polling_interval": "Polling interval (seconds)"
+        },
+        "data_description": {
+          "polling_interval": "How often to check route speeds (60-3600 seconds)"
+        }
+      }
+    },
+    "error": {
+      "invalid_interval": "Polling interval must be between 60 and 3600 seconds"
+    }
+  }
+}
