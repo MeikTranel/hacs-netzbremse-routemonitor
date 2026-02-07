@@ -4,8 +4,12 @@
 name = "netzbremse_routemonitor"
 version = "0.0.0"   # Version is managed in manifest.json only
 requires-python = ">=3.13.2"
-dependencies = [
-    "requests>=2.31.0",
+dependencies = []
+
+[project.optional-dependencies]
+test = [
+    "pytest-homeassistant-custom-component>=0.13.301",
+    "aioresponses>=0.7.6",
 ]
 
 [tool.setuptools]

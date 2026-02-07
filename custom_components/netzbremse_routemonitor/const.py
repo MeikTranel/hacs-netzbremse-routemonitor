@@ -10,7 +10,7 @@ CONF_POLLING_INTERVAL = "polling_interval"
 
 # Default values
 DEFAULT_POLLING_INTERVAL = 1800  # 30 minutes in seconds
-MIN_POLLING_INTERVAL = 300  # 5 minutes
+MIN_POLLING_INTERVAL = 30  # 30 seconds
 MAX_POLLING_INTERVAL = 7200  # 2 hours
 
 

@@ -12,6 +12,7 @@ from datetime import timedelta
 from typing import Any
 
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .cloudflarepycli.cloudflare import CloudflareSpeedtest, SuiteResults
@@ -57,9 +58,7 @@ class NetzbremseRoutemonitorCoordinator(DataUpdateCoordinator[dict[str, dict[str
         for route in ROUTES:
             try:
                 _LOGGER.debug("Starting speed test for route %s (%s)", route.name, route.base_url)
-                raw: SuiteResults = await self.hass.async_add_executor_job(
-                    self._run_speedtest, route
-                )
+                raw: SuiteResults = await self._run_speedtest(route, self.hass)
                 flat = self._flatten_results(raw)
                 flat["route_name"] = route.name
                 data[route.route_id] = flat
@@ -75,11 +74,11 @@ class NetzbremseRoutemonitorCoordinator(DataUpdateCoordinator[dict[str, dict[str
                 raise UpdateFailed(f"Speed test failed for route {route.name}: {err}") from err
         return data
 
-    @staticmethod
-    def _run_speedtest(route: RouteConfig) -> SuiteResults:
+    async def _run_speedtest(self, route: RouteConfig, hass: HomeAssistant) -> SuiteResults:
         """Execute the synchronous Cloudflare speed test for a single route."""
-        speedtest = CloudflareSpeedtest(base_url=route.base_url)
-        return speedtest.run_all(megabits=True)
+        session = async_get_clientsession(hass)
+        speedtest = CloudflareSpeedtest(session=session, base_url=route.base_url)
+        return await speedtest.run_all(megabits=True)
 
     @staticmethod
     def _flatten_results(results: SuiteResults) -> dict[str, Any]:

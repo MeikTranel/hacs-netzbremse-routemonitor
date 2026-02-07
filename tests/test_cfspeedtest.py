@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-import requests_mock as rm
+import aiohttp
+import pytest
+from aioresponses import aioresponses
 
 from custom_components.netzbremse_routemonitor.cloudflarepycli.cloudflare import (
     CloudflareSpeedtest,
@@ -95,7 +97,8 @@ class TestFlattenResults:
 class TestCustomBaseUrl:
     """Verify that CloudflareSpeedtest respects a custom base_url."""
 
-    def test_two_instances_different_urls(self, requests_mock: rm.Mocker):
+    @pytest.mark.asyncio
+    async def test_two_instances_different_urls(self):
         """Two instances with different base_urls hit different endpoints."""
         url_a = "https://custom-t0.speed.cloudflare.com"
         url_b = "https://custom-t1.speed.cloudflare.com"
@@ -103,12 +106,14 @@ class TestCustomBaseUrl:
         meta_a = {**FAKE_META, "colo": "FRA"}
         meta_b = {**FAKE_META, "colo": "AMS"}
 
-        requests_mock.get(f"{url_a}/meta", json=meta_a)
-        requests_mock.get(f"{url_b}/meta", json=meta_b)
+        async with aiohttp.ClientSession() as session:
+            with aioresponses() as m:
+                m.get(f"{url_a}/meta", payload=meta_a)
+                m.get(f"{url_b}/meta", payload=meta_b)
 
-        # Each instance should hit its own /meta endpoint
-        st_a = CloudflareSpeedtest(base_url=url_a)
-        assert st_a.metadata().location_code == "FRA"
+                # Each instance should hit its own /meta endpoint
+                st_a = CloudflareSpeedtest(base_url=url_a, session=session)
+                assert (await st_a.metadata()).location_code == "FRA"
 
-        st_b = CloudflareSpeedtest(base_url=url_b)
-        assert st_b.metadata().location_code == "AMS"
+                st_b = CloudflareSpeedtest(base_url=url_b, session=session)
+                assert (await st_b.metadata()).location_code == "AMS"

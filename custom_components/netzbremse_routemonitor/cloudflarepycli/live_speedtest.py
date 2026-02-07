@@ -7,14 +7,17 @@ or from the terminal:
 
 from __future__ import annotations
 
+import asyncio
 import sys
 from pathlib import Path
+
+import aiohttp
 
 # Ensure the project root is on sys.path so custom_components can be imported.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 
 from custom_components.netzbremse_routemonitor.cloudflarepycli.cloudflare import (
-    DEFAULT_TESTS,
+    SINGLEBIGDOWNLOAD,
     CloudflareSpeedtest,
 )
 from custom_components.netzbremse_routemonitor.coordinator import (
@@ -22,21 +25,23 @@ from custom_components.netzbremse_routemonitor.coordinator import (
 )
 
 
-def main() -> None:
+async def main() -> None:
     # Use a small subset to keep runtime reasonable (~10-15 s)
-    quick_tests = DEFAULT_TESTS
 
     print("Running live Cloudflare speed test …")
-    st = CloudflareSpeedtest(tests=quick_tests, base_url="https://custom-t0.speed.cloudflare.com")
-    results = st.run_all(megabits=True)
+    async with aiohttp.ClientSession() as session:
+        st = CloudflareSpeedtest(
+            tests=SINGLEBIGDOWNLOAD, base_url="https://custom-t0.speed.cloudflare.com", session=session
+        )
+        results = await st.run_all(megabits=True)
+        print(results)
+        flat = NetzbremseRoutemonitorCoordinator._flatten_results(results)
 
-    flat = NetzbremseRoutemonitorCoordinator._flatten_results(results)
-
-    print("\n--- Live Speed Test Results ---")
-    for k, v in flat.items():
-        print(f"  {k}: {v}")
-    print("------------------------------")
+        print("\n--- Live Speed Test Results ---")
+        for k, v in flat.items():
+            print(f"  {k}: {v}")
+        print("------------------------------")
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
