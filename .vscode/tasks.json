@@ -64,17 +64,6 @@
       "problemMatcher": []
     },
     {
-      "label": "Pre-commit (All Hooks)",
-      "type": "shell",
-      "command": "pre-commit run --all-files",
-      "group": "test",
-      "presentation": {
-        "reveal": "always",
-        "panel": "new"
-      },
-      "problemMatcher": []
-    },
-    {
       "label": "Install Requirements",
       "type": "shell",
       "command": "${command:python.interpreterPath} -m pip install -r requirements.txt",

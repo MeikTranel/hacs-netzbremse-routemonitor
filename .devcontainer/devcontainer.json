@@ -1,12 +1,8 @@
 {
   "name": "HA netzbremse_routemonitor Dev Container",
   "image": "mcr.microsoft.com/devcontainers/python:3.13",
-  "postCreateCommand": "bash .devcontainer/setup-shell.sh && bash .devcontainer/setup-git.sh && script/setup/setup",
+  "postCreateCommand": "bash .devcontainer/setup-shell.sh && script/setup/setup",
   "containerEnv": {
-    // Home Assistant version to install in the devcontainer.
-    // Uncomment and set a specific version if needed (e.g., "2026.12.3").
-    // If not set, defaults to version from hacs.json.
-    // "HA_VERSION": "2026.12.3",
     // Install HACS in the Home Assistant installation
     "HA_INSTALL_HACS": "1",
     // Enable asyncio debug mode for easier debugging of async code
@@ -40,7 +36,6 @@
         "charliermarsh.ruff",
         "davidanson.vscode-markdownlint",
         "EditorConfig.EditorConfig",
-        "esbenp.prettier-vscode",
         "GitHub.copilot",
         "github.vscode-pull-request-github",
         "ms-python.python",
@@ -91,41 +86,7 @@
             "source.fixAll.ruff": "explicit",
             "source.organizeImports.ruff": "explicit"
           }
-        },
-        "[yaml]": {
-          "editor.defaultFormatter": "esbenp.prettier-vscode",
-          "editor.formatOnSave": true
-        },
-        "[json]": {
-          "editor.defaultFormatter": "esbenp.prettier-vscode",
-          "editor.formatOnSave": true
-        },
-        "[jsonc]": {
-          "editor.defaultFormatter": "esbenp.prettier-vscode",
-          "editor.formatOnSave": true
-        },
-        "[jsontranslation]": {
-          "editor.defaultFormatter": "esbenp.prettier-vscode",
-          "editor.formatOnSave": false
-        },
-        "json.schemas": [
-          {
-            "fileMatch": ["custom_components/*/manifest.json"],
-            "url": "${containerWorkspaceFolder}/schemas/json/manifest_schema.json"
-          },
-          {
-            "fileMatch": ["custom_components/*/translations/*.json"],
-            "url": "${containerWorkspaceFolder}/schemas/json/translation_schema.json"
-          },
-          {
-            "fileMatch": ["hacs.json"],
-            "url": "${containerWorkspaceFolder}/schemas/json/hacs_schema.json"
-          },
-          {
-            "fileMatch": ["custom_components/*/icons.json"],
-            "url": "${containerWorkspaceFolder}/schemas/json/icons_schema.json"
-          }
-        ]
+        }
       }
     }
   },
