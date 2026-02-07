@@ -36,6 +36,8 @@ SENSOR_DESCRIPTIONS: tuple[NetzbremseSpeedtestSensorDescription, ...] = (
         device_class=SensorDeviceClass.DATA_RATE,
         state_class=SensorStateClass.MEASUREMENT,
         suggested_display_precision=2,
+        name="Download Speed",
+        icon="mdi:download",
     ),
     NetzbremseSpeedtestSensorDescription(
         key="upload_speed",
@@ -45,6 +47,8 @@ SENSOR_DESCRIPTIONS: tuple[NetzbremseSpeedtestSensorDescription, ...] = (
         device_class=SensorDeviceClass.DATA_RATE,
         state_class=SensorStateClass.MEASUREMENT,
         suggested_display_precision=2,
+        name="Upload Speed",
+        icon="mdi:upload",
     ),
     NetzbremseSpeedtestSensorDescription(
         key="latency",
@@ -53,6 +57,8 @@ SENSOR_DESCRIPTIONS: tuple[NetzbremseSpeedtestSensorDescription, ...] = (
         native_unit_of_measurement=UnitOfTime.MILLISECONDS,
         state_class=SensorStateClass.MEASUREMENT,
         suggested_display_precision=2,
+        name="Latency",
+        icon="mdi:timer-sand",
     ),
     NetzbremseSpeedtestSensorDescription(
         key="jitter",
@@ -61,12 +67,16 @@ SENSOR_DESCRIPTIONS: tuple[NetzbremseSpeedtestSensorDescription, ...] = (
         native_unit_of_measurement=UnitOfTime.MILLISECONDS,
         state_class=SensorStateClass.MEASUREMENT,
         suggested_display_precision=2,
+        name="Jitter",
+        icon="mdi:heat-wave",
     ),
     NetzbremseSpeedtestSensorDescription(
         key="isp",
         data_key="isp",
         translation_key="isp",
         entity_category=EntityCategory.DIAGNOSTIC,
+        name="ISP",
+        icon="mdi:wan",
     ),
 )
 
@@ -85,9 +95,7 @@ async def async_setup_entry(
     entities: list[NetzbremseSpeedtestSensor] = []
     for route in ROUTES:
         for description in SENSOR_DESCRIPTIONS:
-            entities.append(
-                NetzbremseSpeedtestSensor(coordinator, description, entry, route.route_id, route.name)
-            )
+            entities.append(NetzbremseSpeedtestSensor(coordinator, description, entry, route.route_id, route.name))
 
     async_add_entities(entities)
     _LOGGER.debug("Added %d speed-test sensors across %d routes", len(entities), len(ROUTES))
@@ -129,7 +137,7 @@ class NetzbremseSpeedtestSensor(CoordinatorEntity[NetzbremseRoutemonitorCoordina
         """Return device info — each route is a separate device."""
         return DeviceInfo(
             identifiers={(DOMAIN, self._route_id)},
-            name=f"Route Monitor – {self._route_name}",
+            name=self._route_name,
             manufacturer="Netzbremse",
             model="Route Monitor",
         )
