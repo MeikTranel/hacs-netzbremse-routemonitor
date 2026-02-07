@@ -1,6 +1,6 @@
 # GitHub Codespaces Development Guide
 
-Integration blueprint is fully compatible with GitHub Codespaces for cloud-based development.
+Netzbremse Routemonitor is fully compatible with GitHub Codespaces for cloud-based development.
 
 ## Quick Start
 
