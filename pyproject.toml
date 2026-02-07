@@ -4,6 +4,9 @@
 name = "netzbremse_routemonitor"
 version = "0.0.0"   # Version is managed in manifest.json only
 requires-python = ">=3.13.2"
+dependencies = [
+    "requests>=2.31.0",
+]
 
 [tool.setuptools]
 packages = ["custom_components.netzbremse_routemonitor"]
@@ -29,13 +32,16 @@ combine-as-imports = true
     "S101",  # assert is fine in tests
     "D",     # Docstrings not required in tests
 ]
+"custom_components/netzbremse_routemonitor/vendor/**" = [
+    "ALL",   # Vendored third-party code — do not lint
+]
 
 # ============================================================================
 # Pyright: Type checker with basic, practical defaults
 # ============================================================================
 [tool.pyright]
 include = ["custom_components/netzbremse_routemonitor"]
-exclude = ["**/node_modules", "**/__pycache__", "**/venv", "**/.venv", "**/config"]
+exclude = ["**/node_modules", "**/__pycache__", "**/venv", "**/.venv", "**/config", "**/vendor"]
 venvPath = ".local"
 venv = "ha-venv"
 typeCheckingMode = "basic"
@@ -47,6 +53,9 @@ typeCheckingMode = "basic"
 testpaths = ["tests"]
 asyncio_mode = "auto"
 addopts = "-ra -q"
+filterwarnings = [
+    "ignore::pytest.PytestCollectionWarning",
+]
 
 [tool.coverage.run]
 source = ["custom_components/netzbremse_routemonitor"]

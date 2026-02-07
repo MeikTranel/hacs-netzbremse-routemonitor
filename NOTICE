@@ -1,0 +1,22 @@
+THIRD-PARTY NOTICES
+====================
+
+This project includes third-party code distributed under its original license.
+
+--------------------------------------------------------------------------------
+
+cloudflarepycli — Cloudflare speedtest library
+<https://github.com/martinbrose/cloudflarepycli>
+
+Copyright (C) Martin Brose (@martinbrose)
+License: GNU General Public License v3.0 (GPLv3)
+
+Files included:
+  custom_components/netzbremse_routemonitor/vendor/cfspeedtest/cloudflare.py
+
+Vendored from commit c13517b9d9031c4ec1552a76c848e36ba2dd094f (2024-11-13).
+The file is included unmodified. See vendor/README.md for update instructions.
+
+The full text of its license is available at:
+  <https://github.com/martinbrose/cloudflarepycli/blob/main/LICENSE>
+  and is identical to the GPLv3 LICENSE in the root of this repository.

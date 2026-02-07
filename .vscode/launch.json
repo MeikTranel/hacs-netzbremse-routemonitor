@@ -63,6 +63,14 @@
           "remoteRoot": "."
         }
       ]
+    },
+    {
+      "name": "Run Current Python File",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${file}",
+      "console": "integratedTerminal",
+      "justMyCode": true
     }
   ]
 }

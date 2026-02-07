@@ -1,24 +1,35 @@
-"""Data update coordinator for Netzbremse Routemonitor integration."""
+"""Data update coordinator for Netzbremse Routemonitor integration.
+
+Uses the vendored CloudflareSpeedtest library to run periodic speed tests
+against Cloudflare's edge network for each configured route, measuring
+download/upload throughput, latency, and jitter.
+"""
+
+from __future__ import annotations
 
 import logging
-import time
 from datetime import timedelta
-
-import aiohttp
+from typing import Any
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .const import DOMAIN, ROUTES
+from .cloudflarepycli.cloudflare import CloudflareSpeedtest, SuiteResults
+from .const import DOMAIN, ROUTES, RouteConfig
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class NetzbremseRoutemonitorCoordinator(DataUpdateCoordinator[dict[str, dict[str, float]]]):
-    """Class to manage fetching data from routes.
+class NetzbremseRoutemonitorCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
+    """Coordinator that runs Cloudflare speed tests for each route periodically.
 
-    This coordinator periodically fetches speed measurements for all configured routes.
-    The update interval is configurable via the integration's config flow.
+    Results are stored as a nested dict keyed by route_id:
+        {
+            "route_a": {download_speed, upload_speed, latency, jitter, isp, ...},
+            "route_b": {...},
+            ...
+        }
+    All speed values are in Mbps.
     """
 
     def __init__(self, hass: HomeAssistant, polling_interval: int) -> None:
@@ -34,112 +45,67 @@ class NetzbremseRoutemonitorCoordinator(DataUpdateCoordinator[dict[str, dict[str
             name=DOMAIN,
             update_interval=timedelta(seconds=polling_interval),
         )
-        _LOGGER.debug("Coordinator initialized with %d second polling interval", polling_interval)
+        _LOGGER.debug(
+            "Coordinator initialized with %d second polling interval for %d routes",
+            polling_interval,
+            len(ROUTES),
+        )
 
-    async def _async_update_data(self) -> dict[str, dict[str, float]]:
-        """Fetch data from all routes."""
-        results: dict[str, dict[str, float]] = {}
-
-        try:
-            for route in ROUTES:
-                _LOGGER.debug("Measuring route %s at %s", route.name, route.base_url)
-
-                # Measure upload and download speeds for this route
-                upload_speed, download_speed = await self._measure_route(route.base_url)
-
-                results[route.route_id] = {
-                    "upload_speed": upload_speed,
-                    "download_speed": download_speed,
-                }
-
-            _LOGGER.debug("Successfully fetched data for %d routes", len(results))
-
-        except Exception as err:
-            _LOGGER.error("Error updating route data: %s", err)
-            raise UpdateFailed(f"Error communicating with routes: {err}") from err
-
-        return results
-
-    async def _measure_route(self, route_url: str, bytes_to_transfer: int = 10_000_000) -> tuple[float, float]:
-        """Measure upload and download speeds for a single route.
-
-        Args:
-            route_url: Base URL of the route endpoint.
-            bytes_to_transfer: Number of bytes to transfer for testing (default: 10MB).
-
-        Returns:
-            Tuple of (upload_speed, download_speed) in Mbps.
-        """
-        upload_speed = 0.0
-        download_speed = 0.0
-
-        timeout = aiohttp.ClientTimeout(total=60)
-
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            upload_speed = await self._measure_upload(session, route_url)
-            download_speed = await self._measure_download(session, route_url)
-
-        return (upload_speed, download_speed)
-
-    async def _measure_download(
-        self, session: aiohttp.ClientSession, base_url: str, bytes_to_transfer: int = 10_000_000
-    ) -> float:
-        """Measure download speed for a route."""
-        try:
-            download_url = f"{base_url}/__down?bytes={bytes_to_transfer}"
-            start_time = time.time()
-
-            async with session.get(download_url) as response:
-                # Read and discard the downloaded bytes
-                async for _ in response.content.iter_any():
-                    pass
-
-            elapsed_time = time.time() - start_time
-
-            if elapsed_time > 0:
-                # Calculate download speed in Mbps: (bytes * 8 bits/byte) / (time_seconds * 1_000_000)
-                download_speed = calculate_speed(bytes_to_transfer, elapsed_time)
-                _LOGGER.debug(
-                    "Download: %d bytes in %.2f seconds = %.2f Mbps",
-                    bytes_to_transfer,
-                    elapsed_time,
-                    download_speed,
+    async def _async_update_data(self) -> dict[str, dict[str, Any]]:
+        """Run a Cloudflare speed test per route and return keyed results."""
+        data: dict[str, dict[str, Any]] = {}
+        for route in ROUTES:
+            try:
+                _LOGGER.debug("Starting speed test for route %s (%s)", route.name, route.base_url)
+                raw: SuiteResults = await self.hass.async_add_executor_job(
+                    self._run_speedtest, route
                 )
-                return download_speed
-        except Exception as err:
-            _LOGGER.warning("Download speed test failed for %s: %s", base_url, err)
+                flat = self._flatten_results(raw)
+                flat["route_name"] = route.name
+                data[route.route_id] = flat
+                _LOGGER.debug(
+                    "Route %s complete: down=%.2f Mbps, up=%.2f Mbps, latency=%.2f ms",
+                    route.name,
+                    flat.get("download_speed", 0) or 0,
+                    flat.get("upload_speed", 0) or 0,
+                    flat.get("latency", 0) or 0,
+                )
+            except Exception as err:
+                _LOGGER.error("Speed test failed for route %s: %s", route.name, err)
+                raise UpdateFailed(f"Speed test failed for route {route.name}: {err}") from err
+        return data
 
-        return 0.0
+    @staticmethod
+    def _run_speedtest(route: RouteConfig) -> SuiteResults:
+        """Execute the synchronous Cloudflare speed test for a single route."""
+        speedtest = CloudflareSpeedtest(base_url=route.base_url)
+        return speedtest.run_all(megabits=True)
 
-    async def _measure_upload(self, session: aiohttp.ClientSession, base_url: str) -> float:
-        """Measure upload speed for a route."""
-        try:
-            upload_url = f"{base_url}/__up"
-            # Create a stream of zeros
-            transfer_size = 10_000_000
-            upload_data = b"\x00" * transfer_size  # 10MB of zeros
+    @staticmethod
+    def _flatten_results(results: SuiteResults) -> dict[str, Any]:
+        """Convert SuiteResults into a flat dict suitable for sensors.
 
-            start_time = time.time()
+        Extracts the 90th-percentile download/upload speeds (Mbps),
+        latency (ms), jitter (ms), and metadata fields.
+        """
+        tests = results.get("tests", {})
+        meta = results.get("meta", {})
 
-            async with session.post(upload_url, data=upload_data) as response:
-                # Wait for the upload to complete
-                await response.read()
+        def _val(d: dict, key: str) -> Any:
+            entry = d.get(key)
+            if entry is None:
+                return None
+            # TestResult is a NamedTuple with .value as first field
+            return entry.value if hasattr(entry, "value") else entry
 
-            elapsed_time = time.time() - start_time
-
-            if elapsed_time > 0:
-                upload_speed = calculate_speed(transfer_size, elapsed_time)
-                _LOGGER.debug("Upload: %d bytes in %.2f seconds = %.2f Mbps", transfer_size, elapsed_time, upload_speed)
-                return upload_speed
-
-        except Exception as err:
-            _LOGGER.warning("Upload speed test failed for %s: %s", base_url, err)
-
-        return 0.0
-
-
-def calculate_speed(bytes_transferred: int, elapsed: float) -> float:
-    """Calculate speed in Mbps."""
-    if elapsed > 0:
-        return (bytes_transferred * 8) / (elapsed * 1000 * 1000)
-    return 0.0
+        return {
+            "download_speed": _val(tests, "90th_percentile_down_mbps"),
+            "upload_speed": _val(tests, "90th_percentile_up_mbps"),
+            "latency": _val(tests, "latency"),
+            "jitter": _val(tests, "jitter"),
+            "isp": _val(tests, "isp"),
+            "ip": _val(meta, "ip"),
+            "location_code": _val(meta, "location_code"),
+            "location_city": _val(meta, "location_city"),
+            "location_region": _val(meta, "location_region"),
+        }

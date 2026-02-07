@@ -1,8 +1,8 @@
 """Constants for the Netzbremse Routemonitor integration."""
 
+# Integration domain
 from dataclasses import dataclass
 
-# Integration domain
 DOMAIN = "netzbremse_routemonitor"
 
 # Configuration keys
