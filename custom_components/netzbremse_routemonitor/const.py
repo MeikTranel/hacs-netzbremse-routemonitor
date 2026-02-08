@@ -22,11 +22,13 @@ class RouteConfig:
         route_id: Unique identifier for the route (e.g., "route_1").
         name: Display name for the route device.
         base_url: Base URL endpoint for this route's measurements.
+        verify_ssl: Whether to verify SSL certificates for this route. Defaults to True.
     """
 
     route_id: str
     name: str
     base_url: str
+    verify_ssl: bool = True
 
 
 # ============================================================================
@@ -35,6 +37,12 @@ class RouteConfig:
 # Replace the placeholder names and URLs below with your actual route
 # configurations. Each route will become a separate device in Home Assistant
 # with upload and download speed sensors.
+#
+# SSL Verification:
+# By default, SSL certificates are verified (verify_ssl=True).
+# To disable SSL verification (required cause some routes fail cert verification with the homeassistant certs),
+# set verify_ssl=False:
+#
 # ============================================================================
 
 ROUTES: list[RouteConfig] = [
@@ -42,6 +50,9 @@ ROUTES: list[RouteConfig] = [
         route_id="route_a",
         name="Route A",
         base_url="https://custom-t0.speed.cloudflare.com",
+        # I absolutely do not know why this is the only route that fails SSL verification, but it does, so here we are.
+        # It also is the only route that uses cloudflare instead of google trust chains.
+        verify_ssl=False,
     ),
     RouteConfig(
         route_id="route_b",

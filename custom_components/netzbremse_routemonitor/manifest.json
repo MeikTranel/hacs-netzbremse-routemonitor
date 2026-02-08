@@ -9,6 +9,8 @@
   "integration_type": "hub",
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/MeikTranel/hacs-netzbremse-routemonitor/issues",
-  "requirements": [],
+  "requirements": [
+    "httpx>=0.27.0"
+  ],
   "version": "0.1.0"
 }

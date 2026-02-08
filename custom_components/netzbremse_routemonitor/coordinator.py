@@ -11,8 +11,10 @@ import logging
 from datetime import timedelta
 from typing import Any
 
+import httpx
+
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.httpx_client import get_async_client
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .cloudflarepycli.cloudflare import CloudflareSpeedtest, SuiteResults
@@ -75,10 +77,22 @@ class NetzbremseRoutemonitorCoordinator(DataUpdateCoordinator[dict[str, dict[str
         return data
 
     async def _run_speedtest(self, route: RouteConfig, hass: HomeAssistant) -> SuiteResults:
-        """Execute the synchronous Cloudflare speed test for a single route."""
-        session = async_get_clientsession(hass)
-        speedtest = CloudflareSpeedtest(session=session, base_url=route.base_url)
-        return await speedtest.run_all(megabits=True)
+        """Execute the Cloudflare speed test for a single route."""
+        if route.verify_ssl:
+            # Use Home Assistant's managed client with SSL verification
+            async with get_async_client(hass) as session:
+                speedtest = CloudflareSpeedtest(session=session, base_url=route.base_url)
+                return await speedtest.run_all(megabits=True)
+        else:
+            # Create custom client with SSL verification disabled for this route
+            _LOGGER.warning(
+                "SSL verification disabled for route %s (%s) - use with caution!",
+                route.name,
+                route.base_url,
+            )
+            async with httpx.AsyncClient(verify=False) as session:
+                speedtest = CloudflareSpeedtest(session=session, base_url=route.base_url)
+                return await speedtest.run_all(megabits=True)
 
     @staticmethod
     def _flatten_results(results: SuiteResults) -> dict[str, Any]:

@@ -11,8 +11,7 @@ import time
 from enum import Enum
 from typing import Any, NamedTuple
 
-import aiohttp
-from aiohttp import ClientTimeout
+import httpx
 
 
 class TestType(Enum):
@@ -72,6 +71,8 @@ class TestTimers(NamedTuple):
     """The times taken to prepare and perform the requests."""
     server: list[float]
     """The times taken to process the requests as reported by the worker."""
+    request: list[float]
+    """The internal client times elapsed to complete the requests."""
 
     def to_speeds(self, test: TestSpec) -> list[int]:
         """Compute the test speeds in bits per second from its type and size."""
@@ -84,7 +85,10 @@ class TestTimers(NamedTuple):
 
     def to_latencies(self) -> list[float]:
         """Compute the test latencies in milliseconds."""
-        return [(full_time - server_time) * 1e3 for full_time, server_time in zip(self.full, self.server, strict=False)]
+        return [
+            (request_time - server_time) * 1e3
+            for request_time, server_time in zip(self.request, self.server, strict=False)
+        ]
 
     @staticmethod
     def jitter_from(latencies: list[float]) -> float | None:
@@ -133,10 +137,10 @@ class CloudflareSpeedtest:
 
     def __init__(
         self,
-        session: aiohttp.ClientSession,
+        session: httpx.AsyncClient,
         results: SuiteResults | None = None,
         tests: TestSpecs = DEFAULT_TESTS,
-        timeout: ClientTimeout | None = None,
+        timeout: float | None = None,
         base_url: str = "https://speed.cloudflare.com",
     ) -> None:
         """
@@ -147,8 +151,7 @@ class CloudflareSpeedtest:
         - `results`: A dictionary of test results. This can be used to include
         results from previous runs.
         - `tests`: The specifications (see `TestSpec`) for all tests to run.
-        - `timeout`: The timeout settings for all requests. See the Timeouts
-        page of the `aiohttp` documentation for more information.
+        - `timeout`: The timeout in seconds for all requests. Defaults to 120.
         - `base_url`: The base URL of the Cloudflare speed test endpoint.
         Defaults to ``https://speed.cloudflare.com``.
         - `logger`: The logger that `CloudflareSpeedtest` will use when it
@@ -162,13 +165,13 @@ class CloudflareSpeedtest:
 
         self.tests = tests
         self.session = session
-        self.timeout = timeout or ClientTimeout(total=120)
+        self.timeout = timeout or 120.0
         self.base_url = base_url.rstrip("/")
 
     async def metadata(self) -> TestMetadata:
         """Retrieve test location code, IP address, ISP, city, and region."""
         response = await self.session.get(f"{self.base_url}/meta")
-        result_data = await response.json(content_type=None)
+        result_data = response.json()
         return TestMetadata(
             result_data.get("clientIp"),
             result_data.get("asOrganization"),
@@ -179,7 +182,7 @@ class CloudflareSpeedtest:
 
     async def run_test(self, test: TestSpec) -> TestTimers:
         """Run a test specification iteratively and collect timers."""
-        coll = TestTimers([], [])
+        coll = TestTimers([], [], [])
         url = f"{self.base_url}/__down?bytes={test.size}"
         data = None
         if test.type == TestType.Up:
@@ -188,10 +191,10 @@ class CloudflareSpeedtest:
 
         for _ in range(test.iterations):
             start = time.time()
-            r = await self.session.request(test.type.value, url, data=data, timeout=self.timeout)
-            await r.read()
+            r = await self.session.request(test.type.value, url, content=data, timeout=self.timeout)
             coll.full.append(time.time() - start)
             coll.server.append(float(r.headers["Server-Timing"].split("=")[1].split(",")[0]) / 1e3)
+            coll.request.append(r.elapsed.total_seconds())
         return coll
 
     def _sprint(self, label: str, result: TestResult, *, meta: bool = False) -> None:

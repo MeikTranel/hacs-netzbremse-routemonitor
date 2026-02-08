@@ -9,3 +9,4 @@
 
 # Note: Home Assistant core dependencies are already available
 # Only list additional packages your integration needs
+httpx>=0.27.0
