@@ -16,7 +16,7 @@
 
 # Testing utilities for Home Assistant custom components
 # Provides additional fixtures and utilities specifically for custom component testing
-pytest-homeassistant-custom-component==0.13.314
+pytest-homeassistant-custom-component==0.13.315
 
 # httpx for async HTTP requests - respx (for mocking) is already in HA's requirements_test.txt
 httpx>=0.27.0
